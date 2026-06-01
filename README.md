@@ -31,6 +31,20 @@ Main 是项目经理，Codex 是沙箱执行工。
 - Main: 数据库/状态登记、仓库打包、GitHub 交接、任务卡派发、进度控制、验收、最终 commit/push 决策。
 - Codex: 只做限定文件修改、执行指定命令、完成最小验证、回报证据、阻塞和风险。
 
+## Heartbeat & Sandbox Bypass / 心跳巡检与沙箱规避
+
+Codex workers must write progress reports locally inside the assigned repo. They must use:
+
+```bash
+python3 scripts/progress_report.py --state in_progress --project <project> --action "<current action>" --checking "<current check>" --out-dir reports/
+```
+
+Never ask a sandboxed Agent to write directly to a global bus, shared control-plane path, or another project. The only allowed worker-side heartbeat path is the local `reports/` directory under the assigned repo.
+
+Main performs the sandbox bypass from outside Codex: a normal Python watchdog scans the repo-local `reports/` directory every 3 seconds and imports new JSON files into the supervisor state. This is a 0 Token mechanism: 0 LLM calls, 0 model cost, and only filesystem reads by a plain Python script.
+
+Codex 执行工必须把进度落盘到当前 repo 的 `reports/`，禁止跨域写全局总线、共享控制面路径或其他项目目录。Main 在 Codex 沙箱外用普通 Python 文件扫描脚本每 3 秒读取本地 JSON；该巡检链路不调用 LLM，Token 消耗为 0，费用为 0。
+
 ## Package contents / 包内容
 
 ```text
@@ -41,6 +55,10 @@ templates/
 references/
   codex-cli-study.md
   verification-gates.md
+scripts/
+  progress_report.py
+reports/
+  progress_*.json
 install.sh
 ```
 

@@ -513,6 +513,28 @@ Whenever Codex is dispatched on a project, it MUST report its progress back to `
 
 `main` is then responsible for translating these structured states into human-readable progress reports for the user.
 
+## Heartbeat & Sandbox Bypass / 心跳巡检与沙箱规避
+
+Because Codex runs inside a kernel sandbox, a worker must not write directly to a global supervisor bus, another workspace, or any cross-domain control-plane path. The worker-side rule is local only: write structured progress JSON into the assigned repo's `reports/` directory with `scripts/progress_report.py`.
+
+Required pattern:
+
+```bash
+python3 scripts/progress_report.py --state acknowledged --project <project> --action "<received task>" --checking "<planned files>" --out-dir reports/
+python3 scripts/progress_report.py --state in_progress --project <project> --action "<current action>" --checking "<current check>" --out-dir reports/
+python3 scripts/progress_report.py --state blocked --project <project> --action "<blocked action>" --checking "<last check>" --blocked_on "<blocker>" --out-dir reports/
+python3 scripts/progress_report.py --state completed --project <project> --action "<completed work>" --checking "<verification>" --out-dir reports/
+```
+
+Hard rules:
+
+- Agent progress must be persisted with `python3 scripts/progress_report.py --out-dir reports/` inside the assigned repo.
+- Agent must never cross-write to a global bus, supervisor workspace, or unrelated project to report progress.
+- Main owns the bypass: an external plain Python watchdog scans each repo-local `reports/` directory every 3 seconds and imports new JSON files.
+- This heartbeat path costs 0 Token: 0 LLM calls, 0 model fees, and only local filesystem scanning.
+
+Use this local heartbeat alongside the 4-state loop. `reports/progress_*.json` is the machine-readable source; human chat summaries are secondary and must not replace the local report files.
+
 ## Fallback chain when quota exhausted
 
 When codex exec returns 429 (quota exceeded) or provider error:
