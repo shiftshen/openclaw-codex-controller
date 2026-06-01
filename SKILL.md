@@ -3,11 +3,40 @@ name: codex-controller
 description: "OpenClaw main runbook for professional Codex CLI operation: study/help/config/features, task dispatch, supervised implementation, code review, frontend/UIUX lanes, evidence gates, and project-development handoff."
 ---
 
-# Codex Controller — OpenClaw Main Runbook
+# Codex Controller — OpenClaw AI Project Manager Runbook
 
 Use this skill whenever OpenClaw main, Hermes, or another agent needs to use Codex professionally for project development, code review, debugging, frontend/page design, UI implementation, or multi-step engineering work.
 
-This is not a generic "ask Codex" note. It is the canonical OpenClaw control loop for **熟练、专业、可验收地使用 Codex**.
+This is not a generic "ask Codex" note. It is the canonical OpenClaw control loop for **AI 项目经理式地指挥 Codex：目标清楚、范围锁死、过程可追踪、结果可验收、绝不漂移**.
+
+## AI Project Manager definition
+
+OpenClaw Main is the **AI 项目经理 / control plane**. Codex is the **沙箱执行工 / implementation worker**.
+
+### Main owns management
+
+Main must own every durable project-management responsibility:
+
+- **登记项目**: create or update the project record in the fixed database/state layer before dispatching meaningful work.
+- **锁定目标**: define the north-star, current one-task objective, acceptance gate, non-goals, and stop conditions.
+- **打包代码**: prepare the initial repo/package, preserve existing code, initialize or sync GitHub when that is part of the project lane.
+- **发号施令**: write the task card, choose the Codex mode, set sandbox/additional dirs, dispatch exactly one bounded job.
+- **监督进度**: require the 4-state notification loop, inspect child output, recover stalled tasks, and keep the queue moving.
+- **验收交付**: verify diff, tests, runtime/browser behavior, artifacts, and state files before saying `done`.
+- **提交发布**: own final commit/push/deploy decisions unless the human explicitly assigns that to a bounded worker.
+
+### Codex owns sandbox work
+
+Codex must only do the bounded work assigned by Main:
+
+- read the task card and repo rules
+- work inside `-C` plus explicit `--add-dir` boundaries
+- edit only allowed files
+- run the required minimum verification
+- report changed files, commands, evidence, blockers, and risks
+- never silently expand product scope, rewrite unrelated modules, or decide the next product direction
+
+If Codex discovers a better direction, it reports it as a candidate. Main decides whether to create a new task.
 
 ## Current studied Codex baseline
 
@@ -36,7 +65,60 @@ Sensitive values from `login status` or config must never be pasted into reports
 9. **Conversation interruption is not a stop signal.** Unless the human pauses, stops, or changes priority, OpenClaw should preserve the Codex queue and continue with the next smallest high-value task on its own cadence.
 10. **Codex is an independent project lane.** Treat the Codex skill, templates, queue ledger, and verification loop as a maintained control plane, not a one-shot helper.
 
-## Codex CLI command map
+## Anti-Drift protocol
+
+Drifting means Codex changes the objective, expands scope, edits unrelated files, implements adjacent ideas, or reports completion without matching the original acceptance gate.
+
+### Hard lock before every run
+
+Every Codex task card must include these fields before dispatch:
+
+- `single_goal`: one sentence, one deliverable, no compound objectives.
+- `allowed_scope`: exact files, directories, commands, systems, and writable paths.
+- `forbidden_scope`: files/systems/features that must not be touched.
+- `acceptance_gate`: commands or observable behavior that prove success.
+- `non_goals`: tempting follow-ups that are explicitly out of scope.
+- `stop_conditions`: when Codex must stop and report `blocked` instead of improvising.
+- `handoff_format`: exact final report shape.
+
+### During the run
+
+- Codex may not add features because they are "nearby".
+- Codex may not refactor unrelated code while fixing a narrow bug.
+- Codex may not update docs, tests, configs, or generated files unless the task allows it or verification requires it.
+- Codex may not read/write another business workspace unless Main grants it with `--add-dir` and says why.
+- Codex may not convert `ready_to_send`, candidate, draft, or pending states into success states.
+- Codex may not claim production readiness from local tests alone when external services are part of acceptance.
+
+### Supervisor drift checks
+
+Main must check drift before accepting any result:
+
+```bash
+git status --short
+git diff --stat
+git diff --name-only
+```
+
+Reject or narrow the task if:
+
+- changed files exceed `allowed_scope`
+- verification is missing or not the requested gate
+- final answer describes a different goal than `single_goal`
+- a "cleanup", "polish", "refactor", "migration", or "design improvement" appeared without approval
+- the task made cross-workspace, credential, database, LINE, SMB, model, queue, Docker, Nginx, or deploy changes without explicit permission
+
+### Required anti-drift wording in task cards
+
+```text
+Anti-Drift Rules:
+- Work on exactly this single_goal and nothing else.
+- Do not improve adjacent features, refactor unrelated code, or edit outside allowed_scope.
+- If the requested result requires scope expansion, stop and report blocked with the smallest required expansion.
+- Completion means acceptance_gate passed; partial work is not done.
+```
+
+## Codex CLI command map and pitfalls
 
 From `codex --help`:
 
@@ -51,7 +133,121 @@ From `codex --help`:
 - `codex resume` / `codex fork` — continue or branch interactive sessions when needed.
 - `codex cloud` — experimental Cloud task browser; do not make it a default OpenClaw path without explicit reason.
 
-Useful `codex exec` flags:
+### Required command pattern
+
+Use stdin task cards by default:
+
+```bash
+codex exec --ignore-rules --ephemeral \
+  -C /absolute/path/to/repo \
+  -s workspace-write \
+  -o /absolute/path/to/tmp/codex.out \
+  - < /absolute/path/to/task.md
+```
+
+This avoids shell quoting bugs and creates a durable output artifact.
+
+### `codex exec` flags
+
+| Flag | Use | Pitfall |
+|---|---|---|
+| `-C, --cd <DIR>` | Set the repo/work root. Always use an absolute path. | Without `-C`, Codex may run from the wrong directory and drift. |
+| `-s, --sandbox read-only` | Study, planning, review, repo inspection. | Do not ask for implementation in read-only mode. |
+| `-s, --sandbox workspace-write` | Normal implementation inside the repo. | Only repo and approved writable roots are editable. |
+| `-s, --sandbox danger-full-access` | Rare contained emergency work with human approval. | Never default to this. It can touch too much. |
+| `--add-dir <DIR>` | Add a second readable/writable path such as a skill root. | Every added dir expands blast radius; name it in `allowed_scope`. |
+| `--ephemeral` | One-off tasks that should not persist session state. | Good default for dispatch; do not rely on resume afterward. |
+| `--json` | Emit JSONL events for machine parsing. | Capture to a file; raw JSONL is noisy for humans. |
+| `-o, --output-last-message <FILE>` | Save the final response. | Does not save full reasoning or command logs. Pair with `--json` if needed. |
+| `--output-schema <FILE>` | Force structured final output. | Schema must match the final answer only, not intermediate events. |
+| `-i, --image <FILE>` | Attach screenshots/design references. | Use absolute paths and include image purpose in the task card. |
+| `--skip-git-repo-check` | Non-git temp work only. | Do not use in real project repos; it hides missing repo mistakes. |
+| `--ignore-rules` | Bypass execpolicy when Main owns the safety envelope. | Do not use to bypass project AGENTS rules or human restrictions. |
+| `-c key=value` | Temporary config override. | Avoid secrets; prefer environment variables. |
+| `--enable/--disable <FEATURE>` | Temporary feature toggles. | Record toggles in evidence; they affect reproducibility. |
+| `--model <MODEL>` | Pick model for cost/capability. | Do not default to expensive models when a bounded task is simple. |
+
+### Subcommands supervisors must know
+
+| Command | Supervisor use | Pitfall |
+|---|---|---|
+| `codex --help` | Baseline available commands. | Help changes by version; refresh after upgrades. |
+| `codex exec --help` | Verify flags before writing new templates. | Do not assume old flags exist. |
+| `codex review --uncommitted` | Review current dirty diff. | Review is candidate-only; Main still verifies. |
+| `codex login status` | Check auth availability. | Redact account/key fragments. |
+| `codex mcp list` | Inspect MCP server availability. | Redact env and tokens. |
+| `codex mcp get <name>` | Inspect one MCP server. | Do not paste secrets in reports. |
+| `codex plugin marketplace list` | Inspect plugin sources. | Plugin availability does not prove skill behavior. |
+| `codex features list` | Inspect experimental/stable features. | Feature drift can change behavior between runs. |
+| `codex sandbox` | Reproduce sandbox command behavior. | This is not a replacement for task-level verification. |
+| `codex apply` | Apply a saved Codex diff. | Use only after reviewing the diff. |
+| `codex resume` | Continue an interactive session. | Avoid for anti-drift dispatch unless session continuity is required. |
+| `codex fork` | Branch an interactive session. | Forks can diverge; record which fork owns the task. |
+
+### Command examples by mode
+
+Read-only study:
+
+```bash
+codex exec --ignore-rules --ephemeral \
+  -C /absolute/path/to/repo \
+  -s read-only \
+  -o /absolute/path/to/tmp/codex-study.out \
+  - < /absolute/path/to/task.md
+```
+
+Implementation in one repo:
+
+```bash
+codex exec --ignore-rules --ephemeral \
+  -C /absolute/path/to/repo \
+  -s workspace-write \
+  -o /absolute/path/to/tmp/codex-impl.out \
+  - < /absolute/path/to/task.md
+```
+
+Implementation with one extra approved directory:
+
+```bash
+codex exec --ignore-rules --ephemeral \
+  -C /absolute/path/to/repo \
+  --add-dir /absolute/path/to/approved-extra-dir \
+  -s workspace-write \
+  -o /absolute/path/to/tmp/codex-extra-dir.out \
+  - < /absolute/path/to/task.md
+```
+
+Machine-readable event capture:
+
+```bash
+codex exec --ignore-rules --ephemeral --json \
+  -C /absolute/path/to/repo \
+  -s workspace-write \
+  - < /absolute/path/to/task.md \
+  > /absolute/path/to/logs/codex-events.jsonl
+```
+
+Uncommitted diff review:
+
+```bash
+codex review --uncommitted -C /absolute/path/to/repo \
+  'Review for correctness, security, regressions, missing tests, scope drift, and user-visible behavior gaps.'
+```
+
+### Common mistakes to prevent
+
+- Running from the wrong directory: always use `-C`.
+- Giving broad prompts like "improve the app": write a one-goal task card.
+- Letting Codex choose files: specify `allowed_scope` and `forbidden_scope`.
+- Passing secrets in prompts: use environment variables and redact logs.
+- Trusting final summaries: inspect `git diff` and rerun verification.
+- Treating `--add-dir` as harmless: every added path is writable scope.
+- Using `--ephemeral` then expecting session resume: save outputs explicitly with `-o` or `--json`.
+- Marking `done` after tests only: external dependencies need real service checks.
+- Accepting cleanup edits: cleanup is a separate task unless already approved.
+- Mixing business workspaces: Chinda, Krothong, Nestor, NestCar, Xmanx, and other lanes stay separate unless Main explicitly bridges them.
+
+### Quick flag reference
 
 - `-C, --cd <DIR>`: required; sets target repo/work root.
 - `-s, --sandbox read-only|workspace-write|danger-full-access`: choose deliberately.
