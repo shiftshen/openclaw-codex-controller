@@ -39,6 +39,8 @@ Minimal facts Codex needs:
 
 OpenClaw/Hermes will accept only with evidence from at least one:
 
+- progress report written inside repo-local sandbox-safe reports directory:
+  - `python3 scripts/progress_report.py --state in_progress --project <project> --action "<current action>" --checking "<current check>" --out-dir reports/`
 - `git diff --stat` and relevant diff review
 - test/build command:
   - `<command>`

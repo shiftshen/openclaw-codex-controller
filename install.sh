@@ -24,6 +24,11 @@ if [[ ! -d "$BASE_DIR/templates" ]]; then
   exit 1
 fi
 
+if [[ ! -f "$BASE_DIR/scripts/progress_report.py" ]]; then
+  echo "ERROR: missing scripts/progress_report.py in package root: $BASE_DIR" >&2
+  exit 1
+fi
+
 TARGET_DIR="$OPENCLAW_WORKSPACE/skills/codex-controller"
 
 mkdir -p "$TARGET_DIR"
@@ -34,5 +39,9 @@ mkdir -p "$TARGET_DIR/templates"
 find "$BASE_DIR/templates" -type f -maxdepth 1 -print0 | while IFS= read -r -d '' file; do
   install -m 0644 "$file" "$TARGET_DIR/templates/$(basename "$file")"
 done
+
+rm -rf "$TARGET_DIR/scripts"
+mkdir -p "$TARGET_DIR/scripts"
+install -m 0755 "$BASE_DIR/scripts/progress_report.py" "$TARGET_DIR/scripts/progress_report.py"
 
 echo "Installed codex-controller skill to: $TARGET_DIR"
