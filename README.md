@@ -12,6 +12,8 @@ OpenClaw Codex Controller 是一个 OpenClaw 技能包，用于把 OpenClaw Main
 - Document Codex CLI command patterns and pitfalls for `--ephemeral`, `-C`, `--add-dir`, sandbox modes, JSONL capture, review, and MCP/plugin inspection.
 - Define delivery gates for code changes, UI work, runtime checks, tests, artifacts, and final reports.
 - Provide reusable task-card templates for normal engineering work and frontend/UIUX work.
+- Clarify the modern role boundary: business agents are managed by `main`; Codex is an external technical employee lane.
+- Add heartbeat/progress visibility rules so the controller can distinguish `acknowledged` from real execution progress.
 
 - 管理 Codex 执行模式：目标模式、计划模式、执行模式、评审模式、列队模式。
 - 强制每次 Codex 只处理一个目标，并写清 repo、branch、可改范围、非目标和回滚说明。
@@ -89,6 +91,11 @@ Use this skill when OpenClaw, Hermes, or another supervisor needs Codex to perfo
 
 当 OpenClaw、Hermes 或其他主控节点需要 Codex 做专业工程执行，而不是泛泛聊天时，使用此技能。
 
+Before dispatching Codex, first decide whether the issue is actually a Codex problem:
+- business agents that can solve their own work should do so directly
+- blocked business agents escalate to `main`
+- only technical debugging / implementation / project work should be handed to Codex
+
 Recommended flow:
 
 推荐流程：
@@ -122,6 +129,12 @@ Codex 任务只有在主控节点能确认以下内容时才算完成：
 - required tests or runtime checks were run
 - UI work includes browser or screenshot evidence when applicable
 - blockers and risks are stated directly
+- progress visibility is adequate: receipt-only is not enough
+- if structured heartbeat is absent, repo-activity evidence has been checked before deciding there is no progress
+
+## Additional docs / 附加文档
+
+- `docs/communication-mechanism.md` — modern role boundary, canonical chains, and heartbeat/progress visibility rules
 
 ## License / 许可证
 

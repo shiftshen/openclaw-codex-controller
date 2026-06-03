@@ -120,6 +120,54 @@ Anti-Drift Rules:
 
 ## Codex CLI command map and pitfalls
 
+## Role boundary and communication mechanism
+
+Codex is **not** one of OpenClaw's seven business employees. It is an external technical employee used by `main` for:
+
+- OpenClaw technical debugging
+- runtime/session/policy repair
+- skill development and maintenance
+- bounded project implementation
+- code review / verification assistance
+
+Codex must **not** be treated as:
+
+- default recipient for business-agent problems
+- owner of business routing/governance
+- replacement for `main` in employee management
+
+### Canonical communication policy
+
+- `main` owns scoping, acceptance, verification, sequencing, and human-facing project control.
+- Codex owns bounded implementation/review tasks inside the assigned technical lane.
+- Business agents that get stuck should escalate to `main`, not directly to Codex.
+- `main` decides whether the issue is a technical-development problem worth handing to Codex.
+- Codex reports status/results/blockers back to `main` first; `main` decides what to surface to the human.
+
+### Required reporting contract for Codex tasks
+
+Every Codex task card should require a final report with:
+
+- `status`: done / partial / blocked
+- `scope_done`
+- `changed_files`
+- `verification_run`
+- `evidence_paths`
+- `blocker`
+- `next_recommended_task`
+
+## Heartbeat visibility requirement
+
+The controller must not rely on receipt alone. It must distinguish:
+
+- `acknowledged`: message/task was received
+- `working`: there is evidence of active execution or repo progress
+- `blocked`: execution cannot continue and a reason is recorded
+- `done`: acceptance gate has passed and evidence exists
+
+Repo activity and progress reports should be treated as separate signals. A valid controller should use both.
+
+
 From `codex --help`:
 
 - `codex exec` / `codex e` — non-interactive implementation/planning worker.
